@@ -1,1 +1,52 @@
+<?php
+session_start(); // Start the session
 
+// Assume you have a database connection established ($conn)
+// and user credentials (username, password) are submitted via a form.
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $username = $_POST['username'];
+    $password = $_POST['password'];
+
+    // Sanitize input to prevent SQL injection (important!)
+    $username = mysqli_real_escape_string($conn, $username);
+    // You should hash passwords, not store them in plain text
+    // $password = hash('sha256', $password); // Example hashing
+
+    // Query the database to find the user
+    $sql = "SELECT id, username, password, is_banned FROM users WHERE username = '$username'";
+    $result = mysqli_query($conn, $sql);
+
+    if (mysqli_num_rows($result) == 1) {
+        $row = mysqli_fetch_assoc($result);
+        
+        // Verify password (using password_verify for hashed passwords)
+        if (password_verify($password, $row['password'])) { 
+            // Check if the user is banned
+            if ($row['is_banned'] == 1) {
+                // User is banned, redirect or display an error
+                $_SESSION['login_error'] = "Your account has been banned.";
+                header("Location: login.php");
+                exit();
+            } else {
+                // User is not banned and credentials are correct, log them in
+                $_SESSION['user_id'] = $row['id'];
+                $_SESSION['username'] = $row['username'];
+                // Redirect to a protected page
+                header("Location: dashboard.php");
+                exit();
+            }
+        } else {
+            // Incorrect password
+            $_SESSION['login_error'] = "Incorrect username or password.";
+            header("Location: login.php");
+            exit();
+        }
+    } else {
+        // User not found
+        $_SESSION['login_error'] = "Incorrect username or password.";
+        header("Location: login.php");
+        exit();
+    }
+}
+?>
